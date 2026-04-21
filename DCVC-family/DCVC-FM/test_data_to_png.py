@@ -18,10 +18,10 @@ def convert_one_seq_to_png(src_path, width, height, dst_path):
 
 
 def main():
-    src_path = "source_yuv_path"
+    src_path = r"C:\01-Work\260421-视频压缩复现\datasets\Bosphorus_1920x1080_120fps_420_8bit_YUV.yuv"
     width = 1920
     height = 1080
-    dst_path = "destination_png_path"
+    dst_path = r"C:\01-Work\260421-视频压缩复现\datasets\Beauty_1920x1080_120fps_420_8bit_YUV"
     convert_one_seq_to_png(src_path, width, height, dst_path)
 
 

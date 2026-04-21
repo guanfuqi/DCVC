@@ -15,7 +15,7 @@ import numpy as np
 from src.models.video_model import DMC
 from src.models.image_model import DMCI
 
-from src.utils.common import str2bool, create_folder, generate_log_json
+from src.utils.common import str2bool, create_folder, generate_log_json, generate_perceptual_log_json
 from src.utils.stream_helper import get_padding_size, get_state_dict, SPSHelper, NalType, \
     write_sps, read_header, read_sps_remaining, read_ip_remaining
 from src.utils.video_reader import PNGReader, YUVReader
@@ -23,6 +23,11 @@ from src.utils.video_writer import PNGWriter, YUVWriter
 from src.utils.metrics import calc_psnr, calc_msssim, calc_msssim_rgb
 from src.transforms.functional import ycbcr444_to_420, ycbcr420_to_444, \
     rgb_to_ycbcr444, ycbcr444_to_rgb
+
+from lpips import LPIPS
+from DISTS_pytorch import DISTS
+
+from typing import Any
 
 
 def parse_args():
@@ -129,6 +134,27 @@ def get_distortion(args, x_hat, y, u, v, rgb):
         curr_psnr = [psnr]
         curr_ssim = [msssim]
     return curr_psnr, curr_ssim
+
+def get_perceptual_distortion(args, x_hat, y, u, v, rgb, metric_dict: dict[str, Any]):
+    res = {}
+    if args['src_type'] == 'yuv420':
+        yuv_rec = x_hat.squeeze(0).cpu().numpy()
+        rgb_rec = ycbcr444_to_rgb(yuv_rec[:1, :, :], yuv_rec[1:, :, :])
+        rgb_rec = np_image_to_tensor(rgb)
+        rgb = ycbcr444_to_rgb(y, np.concatenate((u, v), axis=0))
+        rgb = np_image_to_tensor(rgb)
+        for metric_name, metirc_model in metric_dict.items():
+            res[metric_name] = metirc_model(rgb_rec, rgb)
+    else:
+        assert args['src_type'] == 'png'
+        yuv_rec = x_hat.squeeze(0).cpu().numpy()
+        rgb_rec = ycbcr444_to_rgb(yuv_rec[:1, :, :], yuv_rec[1:, :, :])
+        rgb_rec = np_image_to_tensor(rgb_rec)
+        rgb = np_image_to_tensor(rgb)
+        for metric_name, metirc_model in metric_dict.items():
+            res[metric_name] = metirc_model(rgb_rec, rgb)
+        return res
+    return res
 
 
 def run_one_point_fast(p_frame_net, i_frame_net, args):
@@ -322,6 +348,13 @@ def run_one_point_with_stream(p_frame_net, i_frame_net, args):
         elif args['src_type'] == 'yuv420':
             recon_writer = YUVWriter(args['curr_rec_path'], args['src_width'], args['src_height'])
     pending_frame_spss = []
+
+    metirc_dict = {
+        "LPIPS": LPIPS(),
+        "DISTS": DISTS()
+    }
+    results = []
+
     with torch.no_grad():
         while decoded_frame_number < frame_num:
             new_stream = False
@@ -370,8 +403,9 @@ def run_one_point_with_stream(p_frame_net, i_frame_net, args):
             recon_frame = recon_frame.clamp_(0, 1)
             x_hat = F.pad(recon_frame, (-padding_l, -padding_r, -padding_t, -padding_b))
             frame_end_time = time.time()
-            curr_psnr, curr_ssim = get_distortion(args, x_hat, y, u, v, rgb)
-            assert psnrs[decoded_frame_number][0] == curr_psnr[0]
+            metric = get_perceptual_distortion(args, x_hat, y, u, v, rgb, metirc_dict)
+            results.append(metric)
+            # assert psnrs[decoded_frame_number][0] == curr_psnr[0]
 
             if verbose >= 2:
                 stream_length = 0 if bit_stream is None else len(bit_stream) * 8
@@ -401,8 +435,11 @@ def run_one_point_with_stream(p_frame_net, i_frame_net, args):
               f"average encoding time {overall_p_encoding_time/p_frame_number * 1000:.0f} ms, "
               f"average decoding time {overall_p_decoding_time/p_frame_number * 1000:.0f} ms.")
 
-    log_result = generate_log_json(frame_num, pic_height * pic_width, test_time,
-                                   frame_types, bits, psnrs, msssims, verbose=verbose_json)
+    # log_result = generate_log_json(frame_num, pic_height * pic_width, test_time,
+                                #    frame_types, bits, psnrs, msssims, verbose=verbose_json)
+    log_result = generate_perceptual_log_json(frame_num, pic_height * pic_width, test_time,
+                                   frame_types, bits, results, verbose=verbose_json)
+    
     with open(args['curr_json_path'], 'w') as fp:
         json.dump(log_result, fp, indent=2)
     return log_result

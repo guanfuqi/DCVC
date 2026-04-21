@@ -393,6 +393,7 @@ def init_func(args, gpu_num):
         device = "cuda:0"
     else:
         device = "cpu"
+    print(f"{process_idx} on device {device}")
 
     global i_frame_net
     i_frame_net = DMCI()
