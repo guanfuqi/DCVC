@@ -1,0 +1,78 @@
+{
+  "UVG": {
+    "Bosphorus_1920x1080_120fps_420_8bit_YUV": {
+      "000": {
+        "frame_pixel_num": 2073600,
+        "i_frame_num": 1,
+        "p_frame_num": 95,
+        "ave_i_frame_bpp": 0.013350,
+        "ave_i_frame_psnr": 30.849674,
+        "ave_i_frame_msssim": 0.000000,
+        "test_time": 1995.865244,
+        "ave_p_frame_bpp": 0.000397,
+        "ave_p_frame_psnr": 30.076147,
+        "ave_p_frame_msssim": 0.000000,
+        "ave_all_frame_bpp": 0.000532,
+        "ave_all_frame_psnr": 30.084205,
+        "ave_all_frame_msssim": 0.000000,
+        "ds_name": "UVG",
+        "seq": "Bosphorus_1920x1080_120fps_420_8bit_YUV",
+        "rate_idx": 0
+      },
+      "001": {
+        "frame_pixel_num": 2073600,
+        "i_frame_num": 1,
+        "p_frame_num": 95,
+        "ave_i_frame_bpp": 0.035488,
+        "ave_i_frame_psnr": 34.694334,
+        "ave_i_frame_msssim": 0.000000,
+        "test_time": 1981.203170,
+        "ave_p_frame_bpp": 0.001437,
+        "ave_p_frame_psnr": 34.095549,
+        "ave_p_frame_msssim": 0.000000,
+        "ave_all_frame_bpp": 0.001792,
+        "ave_all_frame_psnr": 34.101786,
+        "ave_all_frame_msssim": 0.000000,
+        "ds_name": "UVG",
+        "seq": "Bosphorus_1920x1080_120fps_420_8bit_YUV",
+        "rate_idx": 1
+      },
+      "002": {
+        "frame_pixel_num": 2073600,
+        "i_frame_num": 1,
+        "p_frame_num": 95,
+        "ave_i_frame_bpp": 0.094904,
+        "ave_i_frame_psnr": 38.640606,
+        "ave_i_frame_msssim": 0.000000,
+        "test_time": 1944.738745,
+        "ave_p_frame_bpp": 0.007186,
+        "ave_p_frame_psnr": 38.198591,
+        "ave_p_frame_msssim": 0.000000,
+        "ave_all_frame_bpp": 0.008100,
+        "ave_all_frame_psnr": 38.203195,
+        "ave_all_frame_msssim": 0.000000,
+        "ds_name": "UVG",
+        "seq": "Bosphorus_1920x1080_120fps_420_8bit_YUV",
+        "rate_idx": 2
+      },
+      "003": {
+        "frame_pixel_num": 2073600,
+        "i_frame_num": 1,
+        "p_frame_num": 95,
+        "ave_i_frame_bpp": 0.241766,
+        "ave_i_frame_psnr": 42.519704,
+        "ave_i_frame_msssim": 0.000000,
+        "test_time": 1944.966975,
+        "ave_p_frame_bpp": 0.033790,
+        "ave_p_frame_psnr": 41.831182,
+        "ave_p_frame_msssim": 0.000000,
+        "ave_all_frame_bpp": 0.035957,
+        "ave_all_frame_psnr": 41.838354,
+        "ave_all_frame_msssim": 0.000000,
+        "ds_name": "UVG",
+        "seq": "Bosphorus_1920x1080_120fps_420_8bit_YUV",
+        "rate_idx": 3
+      }
+    }
+  }
+}

@@ -98,7 +98,7 @@ python setup.py build_ext --inplace
 
 Example to test pretrained model with four rate points:
 ```bash
-python test_video.py --model_path_i ./checkpoints/cvpr2024_image.pth.tar --model_path_p ./checkpoints/cvpr2024_video.pth.tar --rate_num 4 --test_config ./dataset_config_example_yuv420.json --cuda 1 --worker 1 --write_stream 0 --output_path output.json --force_intra_period 9999 --force_frame_num 96
+python test_video.py --model_path_i ./checkpoints/cvpr2024_image.pth.tar --model_path_p ./checkpoints/cvpr2024_video.pth.tar --rate_num 4 --test_config ./dataset_config.json --cuda 1 --worker 1 --write_stream 0 --output_path output.json --force_intra_period 9999 --force_frame_num 96
 ```
 
 It is recommended that the ```--worker``` number is equal to your GPU number.

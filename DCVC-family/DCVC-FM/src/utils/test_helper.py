@@ -27,8 +27,6 @@ from src.transforms.functional import ycbcr444_to_420, ycbcr420_to_444, \
 from lpips import LPIPS
 from DISTS_pytorch import DISTS
 
-from typing import Any
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Example testing script")
@@ -135,26 +133,29 @@ def get_distortion(args, x_hat, y, u, v, rgb):
         curr_ssim = [msssim]
     return curr_psnr, curr_ssim
 
-def get_perceptual_distortion(args, x_hat, y, u, v, rgb, metric_dict: dict[str, Any]):
+
+lpips_net:torch.nn.Module = None
+dists_net:torch.nn.Module = None
+
+
+def get_perceptual_distortion(args, x_hat, y, u, v, rgb):
     res = {}
+    global lpips_net
+    global dists_net
+    device = next(lpips_net.parameters()).device
     if args['src_type'] == 'yuv420':
         yuv_rec = x_hat.squeeze(0).cpu().numpy()
         rgb_rec = ycbcr444_to_rgb(yuv_rec[:1, :, :], yuv_rec[1:, :, :])
-        rgb_rec = np_image_to_tensor(rgb)
         rgb = ycbcr444_to_rgb(y, np.concatenate((u, v), axis=0))
-        rgb = np_image_to_tensor(rgb)
-        for metric_name, metirc_model in metric_dict.items():
-            res[metric_name] = metirc_model(rgb_rec, rgb)
     else:
         assert args['src_type'] == 'png'
         yuv_rec = x_hat.squeeze(0).cpu().numpy()
         rgb_rec = ycbcr444_to_rgb(yuv_rec[:1, :, :], yuv_rec[1:, :, :])
-        rgb_rec = np_image_to_tensor(rgb_rec)
-        rgb = np_image_to_tensor(rgb)
-        for metric_name, metirc_model in metric_dict.items():
-            res[metric_name] = metirc_model(rgb_rec, rgb)
-        return res
-    return res
+    rgb_rec = np_image_to_tensor(rgb_rec).to(device)
+    rgb = np_image_to_tensor(rgb).to(device)
+    lpips = lpips_net(rgb_rec, rgb).item()
+    dists = dists_net(rgb_rec, rgb).item()
+    return lpips, dists
 
 
 def run_one_point_fast(p_frame_net, i_frame_net, args):
@@ -166,8 +167,8 @@ def run_one_point_fast(p_frame_net, i_frame_net, args):
     device = next(i_frame_net.parameters()).device
 
     frame_types = []
-    psnrs = []
-    msssims = []
+    lpips_list = []
+    dists_list = []
     bits = []
     index_map = [0, 1, 0, 2, 0, 2, 0, 2]
 
@@ -211,20 +212,20 @@ def run_one_point_fast(p_frame_net, i_frame_net, args):
             recon_frame = recon_frame.clamp_(0, 1)
             x_hat = F.pad(recon_frame, (-padding_l, -padding_r, -padding_t, -padding_b))
             frame_end_time = time.time()
-            curr_psnr, curr_ssim = get_distortion(args, x_hat, y, u, v, rgb)
-            psnrs.append(curr_psnr)
-            msssims.append(curr_ssim)
+            lpips, dists = get_perceptual_distortion(args, x_hat, y, u, v, rgb)
+            lpips_list.append(lpips)
+            dists_list.append(dists)
 
             if verbose >= 2:
                 print(f"frame {frame_idx}, {frame_end_time - frame_start_time:.3f} seconds, "
-                      f"bits: {bits[-1]:.3f}, PSNR: {psnrs[-1][0]:.4f}, "
-                      f"MS-SSIM: {msssims[-1][0]:.4f} ")
+                      f"bits: {bits[-1]:.3f}, LPIPS: {lpips_list[-1][0]:.4f}, "
+                      f"DISTS: {dists_list[-1][0]:.4f} ")
 
     src_reader.close()
     test_time = time.time() - start_time
 
-    log_result = generate_log_json(frame_num, pic_height * pic_width, test_time,
-                                   frame_types, bits, psnrs, msssims, verbose=verbose_json)
+    log_result = generate_perceptual_log_json(frame_num, pic_height * pic_width, test_time,
+                                   frame_types, bits, lpips_list, dists_list, verbose=verbose_json)
     return log_result
 
 
@@ -448,7 +449,6 @@ def run_one_point_with_stream(p_frame_net, i_frame_net, args):
 i_frame_net = None  # the model is initialized after each process is spawn, thus OK for multiprocess
 p_frame_net = None
 
-
 def worker(args):
     global i_frame_net
     global p_frame_net
@@ -496,6 +496,7 @@ def init_func(args, gpu_num):
         device = "cuda:0"
     else:
         device = "cpu"
+    print(f"{process_idx} on device {device}")
 
     global i_frame_net
     i_state_dict = get_state_dict(args.model_path_i)
@@ -521,3 +522,8 @@ def init_func(args, gpu_num):
         if p_frame_net is not None:
             p_frame_net.half()
         i_frame_net.half()
+    
+    global lpips_net
+    global dists_net
+    lpips_net = LPIPS().to(device)
+    dists_net = DISTS().to(device)

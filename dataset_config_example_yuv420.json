@@ -1,5 +1,5 @@
 {
-    "root_path": "/media/data/",
+    "root_path": "C:/01-Work/260421-视频压缩复现/datasets",
     "test_classes": {
         "UVG": {
             "test": 1,

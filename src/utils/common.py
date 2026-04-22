@@ -175,3 +175,54 @@ def generate_log_json(frame_num, frame_pixel_num, test_time, frame_types, bits, 
         log_result['ave_all_frame_msssim_v'] = (i_ssim_v + p_ssim_v) / frame_num
 
     return log_result
+
+
+def generate_perceptual_log_json(frame_num, frame_pixel_num, test_time, frame_types, bits, lpips_list, dists_list,
+                      verbose=False, avg_encoding_time=None, avg_decoding_time=None):
+    log_result = {}
+
+    i_bits = 0
+    i_lpips = 0
+    i_dists = 0
+    i_num = 0
+
+    p_bits = 0
+    p_lpips = 0
+    p_dists = 0
+    p_num = 0 
+
+    for idx in range(frame_num):
+        if frame_types[idx] == 0:
+            i_bits += bits[idx]
+            i_lpips += lpips_list[idx]
+            i_dists += dists_list[idx]
+            i_num += 1
+        else:
+            p_bits += bits[idx]
+            p_lpips += lpips_list[idx]
+            p_dists += dists_list[idx]
+            p_num += 1
+
+    log_result['frame_pixel_num'] = frame_pixel_num
+    log_result['i_frame_num'] = i_num
+    log_result['p_frame_num'] = p_num
+
+    log_result['ave_i_frame_bpp'] = i_bits / i_num / frame_pixel_num
+    log_result['ave_i_frame_lpips'] = i_lpips / i_num
+    log_result['ave_i_frame_dists'] = i_dists / i_num
+    log_result['test_time'] = test_time
+
+    if p_num > 0:
+        total_p_pixel_num = p_num * frame_pixel_num
+        log_result['ave_p_frame_bpp'] = p_bits / total_p_pixel_num
+        log_result['ave_p_frame_lpips'] = p_lpips / p_num
+        log_result['ave_p_frame_dists'] = p_dists / p_num
+
+    log_result['ave_all_frame_bpp'] = (i_bits + p_bits) / (frame_num * frame_pixel_num)
+    log_result['ave_all_frame_lpips'] = (i_lpips + p_lpips) / frame_num
+    log_result['ave_all_frame_dists'] = (i_dists + p_dists) / frame_num
+    if avg_encoding_time is not None and avg_decoding_time is not None:
+        log_result['avg_frame_encoding_time'] = avg_encoding_time
+        log_result['avg_frame_decoding_time'] = avg_decoding_time
+    
+    return log_result

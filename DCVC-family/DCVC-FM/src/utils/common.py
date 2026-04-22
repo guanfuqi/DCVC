@@ -148,7 +148,7 @@ def generate_log_json(frame_num, frame_pixel_num, test_time, frame_types, bits, 
     return log_result
 
 
-def generate_perceptual_log_json(frame_num, frame_pixel_num, test_time, frame_types, bits, metric_dicts,
+def generate_perceptual_log_json(frame_num, frame_pixel_num, test_time, frame_types, bits, lpips_list, dists_list,
                       verbose=False, avg_encoding_time=None, avg_decoding_time=None):
     log_result = {}
 
@@ -165,13 +165,13 @@ def generate_perceptual_log_json(frame_num, frame_pixel_num, test_time, frame_ty
     for idx in range(frame_num):
         if frame_types[idx] == 0:
             i_bits += bits[idx]
-            i_lpips += metric_dicts[idx]['LPIPS']
-            i_ssim += metric_dicts[idx]['DISTS']
+            i_lpips += lpips_list[idx]
+            i_dists += dists_list[idx]
             i_num += 1
         else:
             p_bits += bits[idx]
-            p_lpips += metric_dicts[idx]['LPIPS']
-            p_dists += metric_dicts[idx]['DISTS']
+            p_lpips += lpips_list[idx]
+            p_dists += dists_list[idx]
             p_num += 1
 
     log_result['frame_pixel_num'] = frame_pixel_num

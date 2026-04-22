@@ -17,13 +17,16 @@ from src.layers.cuda_inference import replicate_pad
 from src.models.video_model import DMC
 from src.models.image_model import DMCI
 from src.utils.common import str2bool, create_folder, generate_log_json, get_state_dict, \
-    dump_json, set_torch_env
+    dump_json, set_torch_env, generate_perceptual_log_json
 from src.utils.stream_helper import SPSHelper, NalType, write_sps, read_header, \
     read_sps_remaining, read_ip_remaining, write_ip
 from src.utils.video_reader import PNGReader, YUV420Reader
 from src.utils.video_writer import PNGWriter, YUV420Writer
 from src.utils.metrics import calc_psnr, calc_msssim, calc_msssim_rgb
 from src.utils.transforms import rgb2ycbcr, ycbcr2rgb, yuv_444_to_420, ycbcr420_to_444_np
+
+from lpips import LPIPS
+from DISTS_pytorch import DISTS
 
 
 def parse_args():
@@ -127,6 +130,27 @@ def get_distortion(args, x_hat, y, u, v, rgb):
     return curr_psnr, curr_ssim
 
 
+lpips_net:torch.nn.Module = None
+dists_net:torch.nn.Module = None
+
+
+def get_perceptual_distortion(args, x_hat, y, u, v, rgb):
+    global lpips_net
+    global dists_net
+    device = next(lpips_net.parameters()).device
+    if args['src_type'] == 'yuv420':
+        rgb_rec = ycbcr2rgb(x_hat)
+        yuv444 = np_image_to_tensor(np.concatenate((y, u, v)), device)
+        rgb = ycbcr2rgb(yuv444)
+    else:
+        assert args['src_type'] == 'png'
+        rgb_rec = ycbcr2rgb(x_hat)
+        rgb = np_image_to_tensor(rgb, device)
+    lpips = lpips_net(rgb_rec, rgb).item()
+    dists = dists_net(rgb_rec, rgb).item()
+    return lpips, dists
+
+
 def run_one_point_with_stream(p_frame_net, i_frame_net, args):
     if args['check_existing'] and os.path.exists(args['curr_json_path']) and \
             os.path.exists(args['curr_bin_path']):
@@ -154,8 +178,8 @@ def run_one_point_with_stream(p_frame_net, i_frame_net, args):
     p_frame_net.set_use_two_entropy_coders(use_two_entropy_coders)
 
     frame_types = []
-    psnrs = []
-    msssims = []
+    lpips_list = []
+    dists_list = []
     bits = []
 
     start_time = time.time()
@@ -293,14 +317,14 @@ def run_one_point_with_stream(p_frame_net, i_frame_net, args):
             frame_time = frame_end_time - frame_start_time
             decoding_time.append(frame_time)
 
-            curr_psnr, curr_ssim = get_distortion(args, x_hat, y, u, v, rgb)
-            psnrs.append(curr_psnr)
-            msssims.append(curr_ssim)
+            curr_lpips, curr_dists = get_perceptual_distortion(args, x_hat, y, u, v, rgb)
+            lpips_list.append(curr_lpips)
+            dists_list.append(curr_dists)
 
             if verbose >= 2:
                 stream_length = 0 if bit_stream is None else len(bit_stream) * 8
                 print(f"frame {decoded_frame_number} decoded, {frame_time * 1000:.3f} ms, "
-                      f"bits: {stream_length}, PSNR: {curr_psnr[0]:.4f} ")
+                      f"bits: {stream_length}, PSNR: {curr_lpips[0]:.4f} ")
 
             if save_decoded_frame:
                 if args['src_type'] == 'yuv420':
@@ -338,8 +362,8 @@ def run_one_point_with_stream(p_frame_net, i_frame_net, args):
         avg_encoding_time = None
         avg_decoding_time = None
 
-    log_result = generate_log_json(frame_num, pic_height * pic_width, test_time,
-                                   frame_types, bits, psnrs, msssims, verbose=verbose_json,
+    log_result = generate_perceptual_log_json(frame_num, pic_height * pic_width, test_time,
+                                   frame_types, bits, lpips_list, dists_list, verbose=verbose_json,
                                    avg_encoding_time=avg_encoding_time,
                                    avg_decoding_time=avg_decoding_time,)
     with open(args['curr_json_path'], 'w') as fp:
@@ -393,7 +417,6 @@ def init_func(args, gpu_num):
         device = "cuda:0"
     else:
         device = "cpu"
-    print(f"{process_idx} on device {device}")
 
     global i_frame_net
     i_frame_net = DMCI()
@@ -413,6 +436,12 @@ def init_func(args, gpu_num):
         p_frame_net.eval()
         p_frame_net.update(args.force_zero_thres)
         p_frame_net.half()
+
+    global lpips_net
+    global dists_net
+
+    lpips_net = LPIPS().to(device)
+    dists_net = DISTS().to(device)
 
 
 def main():

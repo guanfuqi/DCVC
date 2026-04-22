@@ -1,0 +1,13 @@
+{
+    "root_path": "C:/01-Work/260421-视频压缩复现/datasets",
+    "test_classes": {
+        "UVG": {
+            "test": 1,
+            "base_path": "UVG",
+            "src_type": "yuv420",
+            "sequences": {
+                "Bosphorus_1920x1080_120fps_420_8bit_YUV.yuv":     {"width": 1920, "height": 1080, "frames": 600, "intra_period": -1}
+            }
+        }
+    }
+}
